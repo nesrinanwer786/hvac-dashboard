@@ -33,6 +33,12 @@ X_last = last_row[features].values.reshape(1, -1)
 forecast_kw = model.predict(X_last)[0]
 forecast_time = last_time + pd.Timedelta(hours=1)
 
+# =====================================
+# TARIFF (ADDED)
+# =====================================
+unit_price = 8.0  # ₹/kWh (Commercial / HT)
+
+
 connected_load = 1449.6
 tower_capacity_kw = 8800
 
@@ -76,7 +82,6 @@ if location == "Select...":
 
 else:
 
-    # Reset tabs when location changes
     st.session_state.show_tabs = False
 
     # =============================
@@ -118,9 +123,17 @@ else:
 
             with col1:
                 st.write("### Electrical Load Forecast")
+
+                # =============================
+                # ENERGY + COST (ADDED)
+                # =============================
+                projected_energy = forecast_kw
+                energy_cost = projected_energy * unit_price
+
                 st.write(f"Forecasted Plant Power : {forecast_kw:.2f} kW")
                 st.write(f"Expected Plant Utilization : {plant_util:.2f} %")
-                st.write(f"Projected Energy (Next Hour) : {forecast_kw:.2f} kWh")
+                st.write(f"Projected Energy (Next Hour) : {projected_energy:.2f} kWh")
+                st.write(f"Estimated Energy Cost (Next Hour) : ₹ {energy_cost:.2f}")
 
             with col2:
                 df_last = df.tail(24)
