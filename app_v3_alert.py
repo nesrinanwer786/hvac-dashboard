@@ -6,13 +6,11 @@ import matplotlib.dates as mdates
 
 st.set_page_config(layout="wide")
 
-
 # =====================================
 # SESSION STATE
 # =====================================
 if "show_tabs" not in st.session_state:
     st.session_state.show_tabs = False
-
 
 # =====================================
 # LOAD DATA
@@ -20,7 +18,6 @@ if "show_tabs" not in st.session_state:
 model = joblib.load("hvac_forecast_model.pkl")
 features = joblib.load("hvac_model_features.pkl")
 df = pd.read_csv("plant_data.csv", index_col=0, parse_dates=True)
-
 
 # =====================================
 # FORECAST
@@ -36,8 +33,7 @@ forecast_time = last_time + pd.Timedelta(hours=1)
 # =====================================
 # TARIFF (ADDED)
 # =====================================
-unit_price = 8.0  # ₹/kWh (Commercial / HT)
-
+unit_price = 8.0
 
 connected_load = 1449.6
 tower_capacity_kw = 8800
@@ -55,7 +51,6 @@ derived_TR = forecast_kw / eff_last if eff_last else None
 Qreject = (derived_TR * 3.517 + forecast_kw) if derived_TR else None
 tower_util = (Qreject / tower_capacity_kw) * 100 if Qreject else None
 
-
 # =====================================
 # HEADER
 # =====================================
@@ -64,19 +59,14 @@ st.markdown("<h5 style='text-align:center;'>Upcoming Hour Forecast</h5>", unsafe
 
 st.write("")
 
-
 # =====================================
-# LOCATION (WITH DEFAULT)
+# LOCATION
 # =====================================
 location = st.selectbox(
     "Select Location",
     ["Select...", "Kochi", "Chennai", "Delhi", "Mumbai", "Bangalore"]
 )
 
-
-# =====================================
-# SHOW ONLY AFTER LOCATION SELECTED
-# =====================================
 if location == "Select...":
     st.info("👆 Please select a location to proceed")
 
@@ -84,24 +74,14 @@ else:
 
     st.session_state.show_tabs = False
 
-    # =============================
-    # PLANT INFO
-    # =============================
     st.write(f"**Plant Status:** {plant_status}")
     st.write(f"**Upcoming Hour:** {forecast_time.strftime('%d-%b-%Y %H:%M')}")
 
     st.write("")
 
-    # =============================
-    # BUTTON
-    # =============================
     if st.button("🔍 Check Next Hour Forecast"):
         st.session_state.show_tabs = True
 
-
-    # =============================
-    # SHOW TABS AFTER CLICK
-    # =============================
     if st.session_state.show_tabs:
 
         st.write("")
@@ -113,23 +93,18 @@ else:
             "🌡 Condenser System Forecast"
         ])
 
-
         # =====================================
-        # 🔷 TAB 1
+        # TAB 1
         # =====================================
         with tab1:
 
             col1, col2 = st.columns([1.2,1])
 
             with col1:
-                st.write("### Electrical Load Forecast")
-
-                # =============================
-                # ENERGY + COST (ADDED)
-                # =============================
                 projected_energy = forecast_kw
                 energy_cost = projected_energy * unit_price
 
+                st.write("### Electrical Load Forecast")
                 st.write(f"Forecasted Plant Power : {forecast_kw:.2f} kW")
                 st.write(f"Expected Plant Utilization : {plant_util:.2f} %")
                 st.write(f"Projected Energy (Next Hour) : {projected_energy:.2f} kWh")
@@ -137,7 +112,6 @@ else:
 
             with col2:
                 df_last = df.tail(24)
-
                 fig, ax = plt.subplots(figsize=(6,3))
 
                 ax.plot(df_last.index,
@@ -155,85 +129,55 @@ else:
                 ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
                 ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b\n%H:%M'))
 
-                ax.annotate(
-                    forecast_time.strftime("%d-%b %H:%M"),
-                    (forecast_time, forecast_kw),
-                    xytext=(0,25),
-                    textcoords='offset points',
-                    ha='center',
-                    fontsize=9
-                )
-
                 ax.set_title("Plant Power Trend + Forecast (Last 24 Hours)")
                 ax.grid(True)
 
                 st.pyplot(fig)
 
-
-# =====================================
-# 🔷 TAB 2
-# =====================================
-with tab2:
-
-    col1, col2 = st.columns([1.2,1])
-
-    with col1:
-        st.write("### Cooling Demand Forecast")
-        st.write(f"Current Plant Efficiency : {round(eff_last,3) if eff_last else 0} kW/TR")
-        st.write(f"Expected Cooling Load (Next Hour) : {round(derived_TR,2) if derived_TR else 0} TR")
-
-        # ✅ ALERT BLOCK (correct position)
-        if derived_TR:
-
-            cooling_threshold = df["CH4_Total_Plant_Room_Tonnage_TR"].quantile(0.9)
-
-            st.markdown(f"### Cooling Threshold (P90): {cooling_threshold:.2f} TR")
-
-            if derived_TR >= cooling_threshold:
-                st.error("🚨 HIGH LOAD")
-
-            elif derived_TR <= 0.2 * cooling_threshold:
-                st.warning("⚠️ LOW LOAD")
-
-            else:
-                st.success("✅ NORMAL LOAD")
-
-        else:
-            st.info("Cooling load prediction not available")
-
-    # col1 ends
-
-    with col2:
-        df_last = df.tail(24)
-
-        fig, ax = plt.subplots(figsize=(6,3))
-
-        ax.plot(df_last.index,
-                df_last["CH4_Total_Plant_Room_Tonnage_TR"],
-                marker='o')
-
-        if derived_TR:
-            ax.scatter(forecast_time, derived_TR, color='orange', s=80)
-
-            ax.annotate(
-                forecast_time.strftime("%d-%b %H:%M"),
-                (forecast_time, derived_TR),
-                xytext=(0,25),
-                textcoords='offset points',
-                ha='center',
-                fontsize=9
-            )
-
-        ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b\n%H:%M'))
-
-        ax.set_title("Plant TR Trend (Last 24 Hours)")
-        ax.grid(True)
-
-        st.pyplot(fig)
-        
         # =====================================
-        # 🔷 TAB 3
+        # TAB 2
+        # =====================================
+        with tab2:
+
+            col1, col2 = st.columns([1.2,1])
+
+            with col1:
+                st.write("### Cooling Demand Forecast")
+                st.write(f"Current Plant Efficiency : {round(eff_last,3) if eff_last else 0} kW/TR")
+                st.write(f"Expected Cooling Load (Next Hour) : {round(derived_TR,2) if derived_TR else 0} TR")
+
+                if derived_TR:
+                    cooling_threshold = df["CH4_Total_Plant_Room_Tonnage_TR"].quantile(0.9)
+
+                    st.markdown(f"### Cooling Threshold (Perecentile 90): {cooling_threshold:.2f} TR")
+
+                    if derived_TR >= cooling_threshold:
+                        st.error("🚨 HIGH LOAD")
+                    elif derived_TR <= 0.2 * cooling_threshold:
+                        st.warning("⚠️ LOW LOAD")
+                    else:
+                        st.success("✅ NORMAL LOAD")
+                else:
+                    st.info("Cooling load prediction not available")
+
+            with col2:
+                df_last = df.tail(24)
+                fig, ax = plt.subplots(figsize=(6,3))
+
+                ax.plot(df_last.index,
+                        df_last["CH4_Total_Plant_Room_Tonnage_TR"],
+                        marker='o')
+
+                if derived_TR:
+                    ax.scatter(forecast_time, derived_TR, color='orange', s=80)
+
+                ax.set_title("Plant TR Trend (Last 24 Hours)")
+                ax.grid(True)
+
+                st.pyplot(fig)
+
+        # =====================================
+        # TAB 3
         # =====================================
         with tab3:
 
