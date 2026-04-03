@@ -170,48 +170,68 @@ else:
                 st.pyplot(fig)
 
 
-        # =====================================
-        # 🔷 TAB 2
-        # =====================================
-        with tab2:
+# =====================================
+# 🔷 TAB 2
+# =====================================
+with tab2:
 
-            col1, col2 = st.columns([1.2,1])
+    col1, col2 = st.columns([1.2,1])
 
-            with col1:
-                st.write("### Cooling Demand Forecast")
-                st.write(f"Current Plant Efficiency : {round(eff_last,3) if eff_last else 0} kW/TR")
-                st.write(f"Expected Cooling Load (Next Hour) : {round(derived_TR,2) if derived_TR else 0} TR")
+    with col1:
+        st.write("### Cooling Demand Forecast")
+        st.write(f"Current Plant Efficiency : {round(eff_last,3) if eff_last else 0} kW/TR")
+        st.write(f"Expected Cooling Load (Next Hour) : {round(derived_TR,2) if derived_TR else 0} TR")
 
-            with col2:
-                df_last = df.tail(24)
+        # ✅ ALERT BLOCK (correct position)
+        if derived_TR:
 
-                fig, ax = plt.subplots(figsize=(6,3))
+            cooling_threshold = df["CH4_Total_Plant_Room_Tonnage_TR"].quantile(0.9)
 
-                ax.plot(df_last.index,
-                        df_last["CH4_Total_Plant_Room_Tonnage_TR"],
-                        marker='o')
+            st.markdown(f"### Cooling Threshold (P90): {cooling_threshold:.2f} TR")
 
-                if derived_TR:
-                    ax.scatter(forecast_time, derived_TR, color='orange', s=80)
+            if derived_TR >= cooling_threshold:
+                st.error("🚨 HIGH LOAD")
 
-                    ax.annotate(
-                        forecast_time.strftime("%d-%b %H:%M"),
-                        (forecast_time, derived_TR),
-                        xytext=(0,25),
-                        textcoords='offset points',
-                        ha='center',
-                        fontsize=9
-                    )
+            elif derived_TR <= 0.2 * cooling_threshold:
+                st.warning("⚠️ LOW LOAD")
 
-                ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
-                ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b\n%H:%M'))
+            else:
+                st.success("✅ NORMAL LOAD")
 
-                ax.set_title("Plant TR Trend (Last 24 Hours)")
-                ax.grid(True)
+        else:
+            st.info("Cooling load prediction not available")
 
-                st.pyplot(fig)
+    # col1 ends
 
+    with col2:
+        df_last = df.tail(24)
 
+        fig, ax = plt.subplots(figsize=(6,3))
+
+        ax.plot(df_last.index,
+                df_last["CH4_Total_Plant_Room_Tonnage_TR"],
+                marker='o')
+
+        if derived_TR:
+            ax.scatter(forecast_time, derived_TR, color='orange', s=80)
+
+            ax.annotate(
+                forecast_time.strftime("%d-%b %H:%M"),
+                (forecast_time, derived_TR),
+                xytext=(0,25),
+                textcoords='offset points',
+                ha='center',
+                fontsize=9
+            )
+
+        ax.xaxis.set_major_locator(mdates.HourLocator(interval=3))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%b\n%H:%M'))
+
+        ax.set_title("Plant TR Trend (Last 24 Hours)")
+        ax.grid(True)
+
+        st.pyplot(fig)
+        
         # =====================================
         # 🔷 TAB 3
         # =====================================
